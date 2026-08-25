@@ -1,0 +1,7 @@
+{"timestamp": "2026-08-25T17:07:23.431190", "level": "INFO", "logger": "app.main", "message": "Starting Local Coding Agent with model qwen2.5-coder:32b"}
+{"timestamp": "2026-08-25T17:07:23.431850", "level": "INFO", "logger": "app.main", "message": "Qdrant path: ./qdrant_data"}
+{"timestamp": "2026-08-25T17:07:23.431926", "level": "INFO", "logger": "app.main", "message": "SQLite path: ./session_data.db"}
+{"timestamp": "2026-08-25T17:07:23.431981", "level": "INFO", "logger": "app.tools.registry", "message": "Discovering tools from package: app.tools"}
+{"timestamp": "2026-08-25T17:07:23.437392", "level": "INFO", "logger": "app.main", "message": "Discovered 169 tools"}
+{"timestamp": "2026-08-25T17:07:23.444351", "level": "INFO", "logger": "uvicorn.error", "message": "Application startup complete."}
+{"timestamp": "2026-08-25T17:07:23.446607", "level": "INFO", "logger": "uvicorn.error", "message": "Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)"}
