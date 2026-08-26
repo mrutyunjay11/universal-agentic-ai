@@ -22,6 +22,7 @@ class CreatePlanRequest(BaseModel):
 
 
 class BuildContextRequest(BaseModel):
+    model_config = {"protected_namespaces": ()}
     task: str
     candidates: list[dict[str, Any]] = Field(default_factory=list)
     constraints: Optional[list[str]] = None

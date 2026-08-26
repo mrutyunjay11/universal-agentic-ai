@@ -6,7 +6,7 @@ import asyncio
 import logging
 
 from app.config import settings
-from app.routers import chat, ws, projects, files, system, tools, agent, memory, evaluation, autonomy, integrations, platform, context, models, retrieval
+from app.routers import chat, ws, projects, files, system, tools, agent, memory, evaluation, autonomy, integrations, platform, context, models, retrieval, mobile
 from app.services.session_manager import session_manager
 from app.services.ollama_client import OllamaClient
 from app.services.embedding_service import embedding_service
@@ -69,6 +69,7 @@ app.include_router(platform.router)
 app.include_router(context.router)
 app.include_router(models.router)
 app.include_router(retrieval.router)
+app.include_router(mobile.router)
 
 
 @app.get("/api/health")

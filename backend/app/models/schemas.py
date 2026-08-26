@@ -108,6 +108,7 @@ class IndexStatus(BaseModel):
 
 
 class SystemInfo(BaseModel):
+    model_config = {"protected_namespaces": ()}
     gpu_utilization: Optional[float] = None
     gpu_memory_used: Optional[float] = None
     gpu_memory_total: Optional[float] = None

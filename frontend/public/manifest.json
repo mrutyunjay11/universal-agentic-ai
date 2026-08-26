@@ -1,0 +1,16 @@
+{
+  "name": "Universal Agentic AI",
+  "short_name": "Agentic AI",
+  "description": "Autonomous AI Agent with Voice, Web Surfing, Code, and Tools",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#090d16",
+  "theme_color": "#7c3aed",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}

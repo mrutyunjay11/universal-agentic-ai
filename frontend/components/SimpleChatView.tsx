@@ -20,6 +20,9 @@ import {
   FileCode,
   ChevronRight,
   RefreshCw,
+  Mic,
+  MicOff,
+  Smartphone,
 } from "lucide-react";
 
 export function SimpleChatView() {
@@ -36,8 +39,59 @@ export function SimpleChatView() {
   const toggleAppMode = useUIStore((s) => s.toggleAppMode);
 
   const [input, setInput] = useState("");
+  const [isListening, setIsListening] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(false);
+  const recognitionRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const SpeechRecognition =
+        (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        setSpeechSupported(true);
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = true;
+        recognition.lang = "en-US";
+
+        recognition.onresult = (event: any) => {
+          const transcript = Array.from(event.results)
+            .map((result: any) => result[0])
+            .map((result: any) => result.transcript)
+            .join("");
+          setInput(transcript);
+        };
+
+        recognition.onerror = (event: any) => {
+          console.error("Speech recognition error:", event.error);
+          setIsListening(false);
+        };
+
+        recognition.onend = () => {
+          setIsListening(false);
+        };
+
+        recognitionRef.current = recognition;
+      }
+    }
+  }, []);
+
+  const toggleListening = () => {
+    if (!speechSupported || !recognitionRef.current) return;
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      try {
+        recognitionRef.current.start();
+        setIsListening(true);
+      } catch (err) {
+        console.error("Error starting speech recognition:", err);
+      }
+    }
+  };
 
   const onStream = useCallback(
     (data: any) => {
@@ -285,16 +339,38 @@ export function SimpleChatView() {
               className="w-full bg-transparent resize-none outline-none text-sm px-2 text-[var(--text-primary)] placeholder-[var(--text-tertiary)]"
             />
 
-            <div className="flex items-center justify-between pt-2 border-t border-[var(--border)]/40 mt-1">
-              <div className="flex items-center gap-2 text-xs text-[var(--text-tertiary)]">
-                <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--surface-secondary)] border border-[var(--border)] font-mono text-[11px]">
+            <div className="flex items-center justify-between pt-2 border-t border-[var(--border)]/40 mt-1 gap-2">
+              <div className="flex items-center gap-2 text-xs text-[var(--text-tertiary)] overflow-x-auto py-0.5">
+                <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--surface-secondary)] border border-[var(--border)] font-mono text-[11px] shrink-0">
                   <Zap className="w-3 h-3 text-purple-400" />
-                  Qwen3.8-Max • 169 Tools
+                  Qwen3.8-Max
                 </span>
+                {isListening && (
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-500/20 text-red-400 border border-red-500/30 text-[11px] animate-pulse shrink-0">
+                    <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                    Listening to voice...
+                  </span>
+                )}
                 <span className="hidden sm:inline">Shift+Enter for newline</span>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
+                {/* Voice Dictation Button */}
+                {speechSupported && (
+                  <button
+                    type="button"
+                    onClick={toggleListening}
+                    className={`p-2 rounded-xl border text-xs font-medium transition-all ${
+                      isListening
+                        ? "bg-red-500 text-white border-red-600 shadow-md shadow-red-500/30 animate-pulse"
+                        : "bg-[var(--surface-secondary)] hover:bg-[var(--border)] border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                    }`}
+                    title={isListening ? "Stop Voice Recording" : "Voice Dictation (Mobile / Desktop)"}
+                  >
+                    {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                  </button>
+                )}
+
                 {isStreaming ? (
                   <button
                     onClick={sendCancel}

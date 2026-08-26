@@ -5,3 +5,13 @@
 {"timestamp": "2026-08-25T17:07:23.437392", "level": "INFO", "logger": "app.main", "message": "Discovered 169 tools"}
 {"timestamp": "2026-08-25T17:07:23.444351", "level": "INFO", "logger": "uvicorn.error", "message": "Application startup complete."}
 {"timestamp": "2026-08-25T17:07:23.446607", "level": "INFO", "logger": "uvicorn.error", "message": "Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)"}
+{"timestamp": "2026-08-26T03:18:22.922311", "level": "INFO", "logger": "app.main", "message": "Starting Local Coding Agent with model qwen2.5-coder:32b"}
+{"timestamp": "2026-08-26T03:18:22.922844", "level": "INFO", "logger": "app.main", "message": "Qdrant path: ./qdrant_data"}
+{"timestamp": "2026-08-26T03:18:22.922897", "level": "INFO", "logger": "app.main", "message": "SQLite path: ./session_data.db"}
+{"timestamp": "2026-08-26T03:18:22.922935", "level": "INFO", "logger": "app.tools.registry", "message": "Discovering tools from package: app.tools"}
+{"timestamp": "2026-08-26T03:18:22.924455", "level": "INFO", "logger": "app.main", "message": "Discovered 169 tools"}
+{"timestamp": "2026-08-26T03:18:22.925695", "level": "INFO", "logger": "uvicorn.error", "message": "Application startup complete."}
+{"timestamp": "2026-08-26T03:18:22.954226", "level": "ERROR", "logger": "uvicorn.error", "message": "[Errno 48] error while attempting to bind on address ('127.0.0.1', 8000): address already in use"}
+{"timestamp": "2026-08-26T03:18:22.954317", "level": "INFO", "logger": "uvicorn.error", "message": "Waiting for application shutdown."}
+{"timestamp": "2026-08-26T03:18:22.954404", "level": "INFO", "logger": "app.main", "message": "Shutting down..."}
+{"timestamp": "2026-08-26T03:18:22.954673", "level": "INFO", "logger": "uvicorn.error", "message": "Application shutdown complete."}
