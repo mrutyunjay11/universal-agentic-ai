@@ -1,0 +1,210 @@
+================================================================================
+           UNIVERSAL AGENTIC AI: 32GB VRAM MODEL GUIDE & MATH FORMULAS
+================================================================================
+Author: Mrutyunjay Joshi
+Project: Universal Agentic AI
+Target Hardware: 32GB VRAM (NVIDIA RTX 5090 / RTX 4090 / Apple Silicon 36GB-48GB)
+================================================================================
+
+--------------------------------------------------------------------------------
+TABLE OF CONTENTS
+--------------------------------------------------------------------------------
+1. TOP MODELS FOR 32GB VRAM (ALL-IN-ONE LOCAL STACK)
+2. STANDALONE LLM OPTIONS FOR 32GB VRAM
+3. MATHEMATICAL FORMULAS FOR VRAM, TOKENS & SCALING
+   3.1 Model Weight Memory Formula
+   3.2 KV-Cache Memory Formula (Scaling x input tokens -> y output tokens)
+   3.3 Total VRAM Usage Formula
+   3.4 Dynamic Context Budget Allocation Formula
+   3.5 Token Compression & Reduction Ratio Formula
+   3.6 Generation Speed & Latency Formula
+4. STEP-BY-STEP WORKED EXAMPLE (RTX 5090 32GB VRAM)
+--------------------------------------------------------------------------------
+
+
+================================================================================
+1. TOP MODELS FOR 32GB VRAM (ALL-IN-ONE LOCAL STACK)
+================================================================================
+
+With 32GB VRAM, you can run the entire Agent Intelligence, Embedding, Reranking,
+and Context pipeline 100% locally in GPU VRAM with zero cloud dependency.
+
+ROLE                    MODEL NAME                       QUANT / TYPE    VRAM USED    SPEED
+-----------------------------------------------------------------------------------------
+Main Brain / Coder      Qwen2.5-Coder-32B-Instruct       Q4_K_M (or Q5)  ~19.5 GB     ~70-90 t/s
+Semantic Embedding      Qwen/Qwen3-Embedding-8B          FP16 / Q8       ~4.5 GB      <15 ms
+Cross-Attention Rerank  Qwen/Qwen3-Reranker-8B           FP16 / Q8       ~4.5 GB      <20 ms
+KV Cache & Activation   32K Context Window               FP16 / FP8      ~3.5 GB      Realtime
+-----------------------------------------------------------------------------------------
+TOTAL LOCAL STACK                                                        ~32.0 GB     100% in GPU!
+================================================================================
+
+
+================================================================================
+2. STANDALONE LLM OPTIONS FOR 32GB VRAM
+================================================================================
+
+If you want to run a single large model without local embedding/rerankers:
+
+1. Qwen2.5-Coder-32B-Instruct
+   - Best For: Autonomous coding, tool calling, multi-step debugging.
+   - VRAM Required: ~19.5 GB (Q4_K_M) or ~23.5 GB (Q5_K_M).
+   - Context: Up to 128k tokens.
+
+2. DeepSeek-R1-Distill-Qwen-32B
+   - Best For: Complex chain-of-thought, mathematical proofs, deep logic.
+   - VRAM Required: ~19.5 GB (Q4_K_M).
+   - Context: Up to 64k-128k tokens.
+
+3. Llama-3.3-70B-Instruct (Quantized)
+   - Best For: Broad general knowledge, multi-turn reasoning.
+   - VRAM Required: ~28.0 GB (IQ3_M / Q3_K_S quantization).
+   - Context: Up to 8k-16k tokens.
+
+4. Mistral-Small-24B-Instruct-2501
+   - Best For: Ultra-fast balanced reasoning & multi-language tasks.
+   - VRAM Required: ~15.0 GB (Q5_K_M).
+   - Context: Up to 32k tokens.
+
+5. Command-R (35B)
+   - Best For: High-accuracy Retrieval Augmented Generation (RAG) & citations.
+   - VRAM Required: ~22.0 GB (Q4_K_M).
+
+
+================================================================================
+3. MATHEMATICAL FORMULAS FOR VRAM, TOKENS & SCALING
+================================================================================
+
+--------------------------------------------------------------------------------
+3.1 Model Weight Memory Formula
+--------------------------------------------------------------------------------
+Calculates the VRAM required to load the model parameters into GPU memory:
+
+    VRAM_weights (GB) = [ (P * b_weight) / (8 * 10^9) ] * 1.15
+
+Where:
+    - P = Parameter count (e.g., 32.5 * 10^9 for a 32B model)
+    - b_weight = Bits per weight (e.g., 4.5 bits for Q4_K_M, 8 bits for Q8, 16 bits for FP16)
+    - 1.15 = 15% runtime CUDA context, activation buffers, and scratchpad overhead
+
+Example for 32B model in Q4_K_M:
+    VRAM_weights = [ (32.5 * 10^9 * 4.5) / (8 * 10^9) ] * 1.15
+                 = 18.28 GB * 1.15
+                 = 21.02 GB
+
+
+--------------------------------------------------------------------------------
+3.2 KV-Cache Memory Formula (Scaling x Input Tokens -> y Output Tokens)
+--------------------------------------------------------------------------------
+When you send x input tokens and the model generates y output tokens, the total
+context length is:
+    C = x + y
+
+The Key-Value (KV) cache stores attention matrices across all layers:
+
+    VRAM_KV_Cache (Bytes) = 2 * L * H_kv * D_head * C * b_precision
+
+Where:
+    - L = Number of Transformer Layers (e.g., 64 layers for Qwen-32B)
+    - H_kv = Number of Key-Value Heads (with Grouped-Query Attention GQA, H_kv = 8)
+    - D_head = Head Dimension (typically 128)
+    - C = Total tokens (x + y)
+    - b_precision = Bytes per cache element (2 bytes for FP16, 1 byte for FP8)
+
+Simplified KV-Cache Constant per 1,000 Tokens (for 32B GQA Model):
+    - In FP16 Precision = 0.131 GB per 1,000 tokens
+    - In FP8 Precision  = 0.065 GB per 1,000 tokens
+
+Context Length (C = x + y)     KV-Cache VRAM (FP16)      KV-Cache VRAM (FP8)
+----------------------------------------------------------------------------
+8,192 tokens (8k)              1.07 GB                   0.53 GB
+16,384 tokens (16k)            2.15 GB                   1.07 GB
+32,768 tokens (32k)            4.29 GB                   2.15 GB
+65,536 tokens (64k)            8.58 GB                   4.29 GB
+131,072 tokens (128k)          17.16 GB                  8.58 GB
+
+
+--------------------------------------------------------------------------------
+3.3 Total VRAM Usage Formula
+--------------------------------------------------------------------------------
+The complete system constraint must satisfy:
+
+    Total_VRAM = VRAM_weights + VRAM_KV_Cache(x + y) + VRAM_embedding + VRAM_reranker + Overhead <= 32.0 GB
+
+
+--------------------------------------------------------------------------------
+3.4 Dynamic Context Budget Allocation Formula
+--------------------------------------------------------------------------------
+To prevent context overflow and maintain maximum reasoning quality:
+
+    Budget_evidence = Budget_total - (Tokens_system + Tokens_tool_schemas + Tokens_chat_history + Tokens_reserve_output)
+
+Where:
+    - Budget_total = Maximum token context (e.g., 32,768 tokens)
+    - Tokens_system = System instruction prompt (~1,200 tokens)
+    - Tokens_tool_schemas = 169 registered tool JSON schemas (~4,500 tokens)
+    - Tokens_chat_history = Recent conversation messages (~2,000 tokens)
+    - Tokens_reserve_output = Reserved token space for model response (~4,096 tokens)
+    - Budget_evidence = Exactly what remains for retrieved search facts (~20,972 tokens)
+
+
+--------------------------------------------------------------------------------
+3.5 Token Compression & Reduction Ratio Formula (x -> y where x > y)
+--------------------------------------------------------------------------------
+When raw document search results (x tokens) are filtered and compressed into
+clean, high-signal evidence (y tokens):
+
+    Compression_Ratio (%) = [ (x - y) / x ] * 100%
+
+Example:
+    - Raw Ingested Chunks (x) = 24,500 tokens
+    - Filtered Evidence (y)   = 3,500 tokens
+    - Compression Savings     = [ (24,500 - 3,500) / 24,500 ] * 100% = 85.71% Token Reduction
+
+
+--------------------------------------------------------------------------------
+3.6 Generation Speed & Latency Formula
+--------------------------------------------------------------------------------
+The total response time for x input tokens and y generated output tokens:
+
+    Total_Time (seconds) = T_prefill(x) + T_decode(y)
+
+1. Prefill Phase (Processing x input tokens - Compute Bound):
+    T_prefill = (2 * P * x) / GPU_TFLOPS
+
+2. Decode Phase (Generating y output tokens - Memory Bandwidth Bound):
+    T_decode = y * [ Model_Size_Bytes / Memory_Bandwidth_Bytes_Per_Sec ]
+
+On NVIDIA RTX 5090 (Memory Bandwidth = 1,790 GB/s, Model Size = 20 GB):
+    Time_per_token = 20 GB / 1,790 GB/s = 0.0111 seconds/token
+    Generation Speed = 1 / 0.0111 = 90 tokens/second
+
+For x = 4,000 prompt tokens and y = 1,000 output tokens:
+    - T_prefill = ~0.08 seconds
+    - T_decode  = 1,000 * 0.0111s = 11.1 seconds
+    - Total Time = ~11.18 seconds
+
+
+================================================================================
+4. STEP-BY-STEP WORKED EXAMPLE (RTX 5090 32GB VRAM)
+================================================================================
+
+Goal: Run full autonomous agent with Qwen2.5-Coder-32B at 32k context window.
+
+Step 1: Calculate Weights Memory
+    VRAM_weights = 21.02 GB
+
+Step 2: Calculate KV Cache for 32,768 Tokens in FP8
+    VRAM_KV_Cache = 2.15 GB
+
+Step 3: Add Qwen3-Embedding-8B + Qwen3-Reranker-8B
+    VRAM_embed_rerank = 4.5 GB + 4.0 GB = 8.5 GB (Loaded on-demand or shared)
+    * With unified pipeline: ~4.5 GB active at inference time.
+
+Step 4: Total Memory
+    Total = 21.02 GB (Coder) + 2.15 GB (KV Cache) + 4.5 GB (Embedding/Rerank) + 1.5 GB (CUDA)
+          = 29.17 GB / 32.0 GB (Comfortable 2.83 GB headroom remaining!)
+
+================================================================================
+End of Guide
+================================================================================
