@@ -16,9 +16,14 @@ TABLE OF CONTENTS
    3.2 KV-Cache Memory Formula (Scaling x input tokens -> y output tokens)
    3.3 Total VRAM Usage Formula
    3.4 Dynamic Context Budget Allocation Formula
-   3.5 Token Compression & Reduction Ratio Formula
-   3.6 Generation Speed & Latency Formula
-4. STEP-BY-STEP WORKED EXAMPLE (RTX 5090 32GB VRAM)
+   3.5 Token Density & Estimation Formula on Any Data Type
+   3.6 The 1M Token Corpus Multi-Stage Compression Formula
+   3.7 Word Importance & Retention Scoring Formula (Save vs Drop Rule)
+   3.8 BM25 Exact Keyword Value Formula
+   3.9 Generation Speed & Latency Formula
+4. STEP-BY-STEP WORKED EXAMPLES
+   4.1 32GB VRAM Hardware Allocation
+   4.2 1,000,000 Token Corpus Compression to 2,184 Tokens
 --------------------------------------------------------------------------------
 
 
@@ -87,11 +92,6 @@ Where:
     - b_weight = Bits per weight (e.g., 4.5 bits for Q4_K_M, 8 bits for Q8, 16 bits for FP16)
     - 1.15 = 15% runtime CUDA context, activation buffers, and scratchpad overhead
 
-Example for 32B model in Q4_K_M:
-    VRAM_weights = [ (32.5 * 10^9 * 4.5) / (8 * 10^9) ] * 1.15
-                 = 18.28 GB * 1.15
-                 = 21.02 GB
-
 
 --------------------------------------------------------------------------------
 3.2 KV-Cache Memory Formula (Scaling x Input Tokens -> y Output Tokens)
@@ -139,71 +139,97 @@ To prevent context overflow and maintain maximum reasoning quality:
 
     Budget_evidence = Budget_total - (Tokens_system + Tokens_tool_schemas + Tokens_chat_history + Tokens_reserve_output)
 
+
+--------------------------------------------------------------------------------
+3.5 Token Density & Estimation Formula on Any Data Type
+--------------------------------------------------------------------------------
+Calculates raw tokens x across any document or file type:
+
+    x = SUM [ Length_chars(j) * rho_type ]
+
+Where rho_type is the Token Density Ratio:
+    - Plain Text:        rho = 0.250 tokens/char (~4.0 chars/token)
+    - Code (Python/JS):  rho = 0.312 tokens/char (~3.2 chars/token)
+    - JSON / Key-Value:  rho = 0.357 tokens/char (~2.8 chars/token)
+    - PDF / Scanned OCR: rho = 0.222 tokens/char (~4.5 chars/token)
+
+
+--------------------------------------------------------------------------------
+3.6 The 1M Token Corpus Multi-Stage Compression Formula
+--------------------------------------------------------------------------------
+Calculates how 1,000,000 raw tokens are compressed into a compact reasoning context:
+
+    T_final = T_raw * PROD [ 1 - r_i ]
+            = T_raw * (1 - r_search) * (1 - r_rerank) * (1 - r_dedup) * (1 - r_progressive) * (1 - r_semantic)
+
+Example for 1M Tokens (1,000,000 tokens):
+    T_final = 1,000,000 * (1 - 0.96) * (1 - 0.80) * (1 - 0.30) * (1 - 0.40) * (1 - 0.35)
+            = 1,000,000 * (0.04 * 0.20 * 0.70 * 0.60 * 0.65)
+            = 1,000,000 * 0.002184
+            = 2,184 Tokens (99.78% Reduction!)
+
+
+--------------------------------------------------------------------------------
+3.7 Word Importance & Retention Scoring Formula (Save vs Drop Rule)
+--------------------------------------------------------------------------------
+Every word/token w is assigned an Information Salience Score S(w):
+
+    S(w) = alpha * BM25(w, Q) + beta * AttentionWeight(w, Q) + gamma * I_critical(w)
+
 Where:
-    - Budget_total = Maximum token context (e.g., 32,768 tokens)
-    - Tokens_system = System instruction prompt (~1,200 tokens)
-    - Tokens_tool_schemas = 169 registered tool JSON schemas (~4,500 tokens)
-    - Tokens_chat_history = Recent conversation messages (~2,000 tokens)
-    - Tokens_reserve_output = Reserved token space for model response (~4,096 tokens)
-    - Budget_evidence = Exactly what remains for retrieved search facts (~20,972 tokens)
+    - alpha = 0.35, beta = 0.35, gamma = 0.30
+    - BM25(w, Q) = Exact keyword match score against query Q
+    - AttentionWeight(w, Q) = Cross-attention relevance from Reranker
+    - I_critical(w) = Critical Entity Indicator:
+        * I_critical = 1.0 for numbers, dates, versions, error codes, function names
+        * I_critical = 1.0 for negations ('not', 'never', 'must', 'only')
+        * I_critical = 0.0 for stopwords, conversational filler
+
+Retention Rule:
+    - If S(w) >= 0.60  ==> KEEP TOKEN
+    - If S(w) <  0.60  ==> DROP TOKEN
 
 
 --------------------------------------------------------------------------------
-3.5 Token Compression & Reduction Ratio Formula (x -> y where x > y)
+3.8 BM25 Exact Keyword Value Formula
 --------------------------------------------------------------------------------
-When raw document search results (x tokens) are filtered and compressed into
-clean, high-signal evidence (y tokens):
+    BM25(w, D) = IDF(w) * [ f(w, D) * (k1 + 1) ] / [ f(w, D) + k1 * (1 - b + b * (|D| / avgdl)) ]
 
-    Compression_Ratio (%) = [ (x - y) / x ] * 100%
-
-Example:
-    - Raw Ingested Chunks (x) = 24,500 tokens
-    - Filtered Evidence (y)   = 3,500 tokens
-    - Compression Savings     = [ (24,500 - 3,500) / 24,500 ] * 100% = 85.71% Token Reduction
+Where:
+    - IDF(w) = ln[ (N - n(w) + 0.5) / (n(w) + 0.5) + 1 ]
+    - f(w, D) = Term frequency of word w in document D
+    - k1 = 1.5, b = 0.75
 
 
 --------------------------------------------------------------------------------
-3.6 Generation Speed & Latency Formula
+3.9 Generation Speed & Latency Formula
 --------------------------------------------------------------------------------
-The total response time for x input tokens and y generated output tokens:
+    Total_Time = T_prefill(x) + T_decode(y)
 
-    Total_Time (seconds) = T_prefill(x) + T_decode(y)
+    1. T_prefill = (2 * P * x) / GPU_TFLOPS
+    2. T_decode  = y * [ Model_Size_Bytes / Memory_Bandwidth_Bytes_Per_Sec ]
 
-1. Prefill Phase (Processing x input tokens - Compute Bound):
-    T_prefill = (2 * P * x) / GPU_TFLOPS
-
-2. Decode Phase (Generating y output tokens - Memory Bandwidth Bound):
-    T_decode = y * [ Model_Size_Bytes / Memory_Bandwidth_Bytes_Per_Sec ]
-
-On NVIDIA RTX 5090 (Memory Bandwidth = 1,790 GB/s, Model Size = 20 GB):
-    Time_per_token = 20 GB / 1,790 GB/s = 0.0111 seconds/token
-    Generation Speed = 1 / 0.0111 = 90 tokens/second
-
-For x = 4,000 prompt tokens and y = 1,000 output tokens:
-    - T_prefill = ~0.08 seconds
-    - T_decode  = 1,000 * 0.0111s = 11.1 seconds
-    - Total Time = ~11.18 seconds
+On RTX 5090 (1,790 GB/s bandwidth, 20 GB Model):
+    Time_per_token = 20 GB / 1,790 GB/s = 0.0111 s/token (90 tokens/sec)
 
 
 ================================================================================
-4. STEP-BY-STEP WORKED EXAMPLE (RTX 5090 32GB VRAM)
+4. STEP-BY-STEP WORKED EXAMPLES
 ================================================================================
 
-Goal: Run full autonomous agent with Qwen2.5-Coder-32B at 32k context window.
+4.1 32GB VRAM Hardware Allocation (RTX 5090):
+    - Weights (Qwen2.5-Coder-32B Q4):  21.02 GB
+    - KV Cache (32,768 Tokens FP8):     2.15 GB
+    - Embedding + Reranker (Shared):    4.50 GB
+    - CUDA Context & Activation:        1.50 GB
+    - Total:                           29.17 GB / 32.0 GB (2.83 GB Free Headroom)
 
-Step 1: Calculate Weights Memory
-    VRAM_weights = 21.02 GB
-
-Step 2: Calculate KV Cache for 32,768 Tokens in FP8
-    VRAM_KV_Cache = 2.15 GB
-
-Step 3: Add Qwen3-Embedding-8B + Qwen3-Reranker-8B
-    VRAM_embed_rerank = 4.5 GB + 4.0 GB = 8.5 GB (Loaded on-demand or shared)
-    * With unified pipeline: ~4.5 GB active at inference time.
-
-Step 4: Total Memory
-    Total = 21.02 GB (Coder) + 2.15 GB (KV Cache) + 4.5 GB (Embedding/Rerank) + 1.5 GB (CUDA)
-          = 29.17 GB / 32.0 GB (Comfortable 2.83 GB headroom remaining!)
+4.2 1,000,000 Token Corpus Compression:
+    - Raw Corpus (x):                 1,000,000 tokens
+    - Filtered Evidence (y):              2,184 tokens
+    - Tokens Saved:                     997,816 tokens
+    - Compression Savings:                99.78% reduction
+    - Prefill Latency:                Reduced from 5.0s -> 0.04s (125x Faster!)
 
 ================================================================================
 End of Guide
